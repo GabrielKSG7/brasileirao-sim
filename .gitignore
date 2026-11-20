@@ -28,3 +28,6 @@ logs/
 Thumbs.db
 .vscode/
 .idea/
+
+# dbt: identificador local do usuário
+dbt/.user.yml

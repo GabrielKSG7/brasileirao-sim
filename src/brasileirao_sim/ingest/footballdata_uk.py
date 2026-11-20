@@ -1,8 +1,15 @@
-"""Ingestão do BRA.csv do football-data.co.uk (resultados + odds do Brasileirão).
+"""Ingestão do BRA.csv do football-data.co.uk (resultados + odds de fechamento do Brasileirão).
 
 O arquivo é baixado como veio (data/raw/BRA.csv), validado e convertido em Parquet
 com tipos corretos. Um manifesto JSON guarda o hash e a data da coleta, para que
 cada rodada do backtest possa citar exatamente os dados que usou.
+
+Observações sobre o formato real (conferidas em 20/11/2026):
+- só há odds de FECHAMENTO (colunas com sufixo C); Avg/Max cobrem todas as temporadas,
+  Pinnacle (PSC) vai até 2025 e Bet365/Betfair só aparecem em temporadas recentes;
+- o arquivo só contém jogos já disputados (mais um jogo de 2016 nunca realizado);
+- Date/Time parecem estar em UTC (jogos às 22h-01h; no Brasil são 19h-22h). Por isso a data
+  usada nos cortes do backtest é a data LOCAL (America/Sao_Paulo), não a do arquivo.
 """
 
 from __future__ import annotations
@@ -19,12 +26,20 @@ import requests
 
 URL = "https://www.football-data.co.uk/new/BRA.csv"
 USER_AGENT = "brasileirao-sim (+https://github.com/GabrielKSG7/brasileirao-sim)"
+LOCAL_TZ = "America/Sao_Paulo"
+FILE_TZ = "UTC"
 
 # Colunas indispensáveis: sem elas a ingestão falha, em vez de seguir com dado errado.
 REQUIRED = ["Season", "Date", "Home", "Away", "HG", "AG", "Res"]
-# Colunas opcionais (odds): se faltarem, viram vazias e um aviso é emitido.
-OPTIONAL = ["Country", "League", "Time", "PH", "PD", "PA", "MaxH", "MaxD", "MaxA", "AvgH", "AvgD", "AvgA"]
-ODDS = ["PH", "PD", "PA", "MaxH", "MaxD", "MaxA", "AvgH", "AvgD", "AvgA"]
+# Odds de fechamento: se faltarem, viram vazias e um aviso é emitido.
+ODDS = [
+    "PSCH", "PSCD", "PSCA",        # Pinnacle
+    "MaxCH", "MaxCD", "MaxCA",     # máxima do mercado
+    "AvgCH", "AvgCD", "AvgCA",     # média do mercado (referência principal)
+    "BFECH", "BFECD", "BFECA",     # Betfair Exchange
+    "B365CH", "B365CD", "B365CA",  # Bet365
+]
+OPTIONAL = ["Time", *ODDS]
 
 
 class SchemaError(ValueError):
@@ -32,7 +47,7 @@ class SchemaError(ValueError):
 
 
 def parse_bra_csv(path: str | Path) -> pd.DataFrame:
-    """Lê e normaliza o CSV. Jogos sem placar (ainda não disputados) ficam com gols nulos."""
+    """Lê e normaliza o CSV. Jogos sem placar ficam com gols nulos e is_played falso."""
     raw = pd.read_csv(path, dtype=str, keep_default_na=False, na_values=[""])
     raw.columns = [c.strip() for c in raw.columns]
 
@@ -48,13 +63,25 @@ def parse_bra_csv(path: str | Path) -> pd.DataFrame:
 
     df = pd.DataFrame()
     df["season"] = pd.to_numeric(raw["Season"], errors="raise").astype("int64")
-    df["match_date"] = pd.to_datetime(raw["Date"], dayfirst=True, errors="raise").dt.date
-    df["kickoff_time"] = raw["Time"].astype("string")
+
+    file_date = pd.to_datetime(raw["Date"], dayfirst=True, errors="raise")
+    has_time = raw["Time"].notna()
+    stamp = pd.to_datetime(
+        raw["Date"].str.strip() + " " + raw["Time"].fillna("00:00").str.strip(),
+        dayfirst=True,
+        errors="raise",
+    ).dt.tz_localize(FILE_TZ)
+    df["kickoff_utc"] = stamp.where(has_time)
+    local_date = stamp.dt.tz_convert(LOCAL_TZ).dt.date
+    # sem horário não dá para converter: mantém a data do arquivo
+    df["match_date"] = local_date.where(has_time, file_date.dt.date)
+
     df["home_team"] = raw["Home"].str.strip()
     df["away_team"] = raw["Away"].str.strip()
     df["home_goals"] = pd.to_numeric(raw["HG"], errors="raise").astype("Int64")
     df["away_goals"] = pd.to_numeric(raw["AG"], errors="raise").astype("Int64")
     df["result"] = raw["Res"].str.strip().astype("string")
+    df["is_played"] = df["home_goals"].notna() & df["away_goals"].notna()
     for col in ODDS:
         df[f"odds_{col.lower()}"] = pd.to_numeric(raw[col], errors="coerce")
 
@@ -63,7 +90,7 @@ def parse_bra_csv(path: str | Path) -> pd.DataFrame:
 
 
 def _validate(df: pd.DataFrame) -> None:
-    played = df.dropna(subset=["home_goals", "away_goals"])
+    played = df[df["is_played"]]
     bad_res = played[~played["result"].isin(["H", "D", "A"])]
     if len(bad_res):
         raise SchemaError(f"{len(bad_res)} jogos com resultado fora de H/D/A")
@@ -80,9 +107,10 @@ def _validate(df: pd.DataFrame) -> None:
     if (df["home_team"] == df["away_team"]).any():
         raise SchemaError("jogo com o mesmo time nos dois lados")
 
-    dup = df.duplicated(["match_date", "home_team", "away_team"])
+    # Pontos corridos: cada par (mandante, visitante) aparece uma única vez por temporada.
+    dup = df.duplicated(["season", "home_team", "away_team"])
     if dup.any():
-        raise SchemaError(f"{int(dup.sum())} jogos duplicados (data, mandante, visitante)")
+        raise SchemaError(f"{int(dup.sum())} jogos duplicados (temporada, mandante, visitante)")
 
 
 def download(dest: Path, url: str = URL) -> Path:
@@ -99,15 +127,16 @@ def run(csv_path: Path, out_dir: Path, source_url: str | None = None) -> Path:
     parquet = out_dir / "fduk_bra.parquet"
     df.to_parquet(parquet, index=False)
 
+    played = df[df["is_played"]]
     manifest = {
         "source": source_url or "arquivo local",
         "fetched_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "sha256": hashlib.sha256(Path(csv_path).read_bytes()).hexdigest(),
         "rows": len(df),
-        "played_rows": int(df["home_goals"].notna().sum()),
+        "played_rows": len(played),
         "seasons": sorted(int(s) for s in df["season"].unique()),
-        "first_date": str(df["match_date"].min()),
-        "last_date": str(df["match_date"].max()),
+        "first_date": str(played["match_date"].min()),
+        "last_date": str(played["match_date"].max()),
     }
     (out_dir / "fduk_bra.manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(json.dumps(manifest, indent=2))
