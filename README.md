@@ -4,7 +4,7 @@ Simulador do Brasileirão Série A com **backtest rodada a rodada**: para cada r
 o modelo roda usando apenas o que se sabia até aquele momento, e as probabilidades de título,
 Libertadores, Sul-Americana e rebaixamento são comparadas com o que aconteceu.
 
-> Status: **em construção** (v0.1: ingestão e staging). O roteiro completo está abaixo.
+> Status: **em construção** (v0.2: ingestão, modelos e simulação). O roteiro completo está abaixo.
 
 ## Ideia
 
@@ -30,7 +30,7 @@ Na v1 as zonas são fixas por posição, sem a redistribuição de vagas que dep
 ```
 ingestão (Python)  ->  data/raw/*.parquet + manifesto (hash, data da coleta)
 dbt + DuckDB       ->  staging -> intermediate -> marts
-Python (src/)      ->  ajuste do modelo + simulação -> parquet
+Python (src/)      ->  data.py (corte por data) -> models/ -> simulate.py
 dbt                ->  predições, probabilidades por time, métricas, calibração
 site/              ->  páginas estáticas -> GitHub Pages
 ```
@@ -50,6 +50,25 @@ cd .. && pytest
 
 Para usar um CSV já baixado: `python -m brasileirao_sim.ingest.footballdata_uk --csv caminho/BRA.csv`.
 
+### Simular a partir de uma data
+
+```bash
+python -m brasileirao_sim.cli simulate --season 2026 --as-of 2026-11-20
+python -m brasileirao_sim.cli simulate --season 2026 --as-of 2026-07-29 --model elo --out out/r20.csv
+```
+
+Modelos: `dixon_coles` (principal), `elo` e `tabela` (baselines).
+
+## Proteção contra vazamento de dados futuros
+
+- Os modelos só recebem resultados por `TrainingData`, criada por `as_of(corte)`, que filtra e
+  **verifica** que nenhum jogo é posterior ao corte.
+- Os jogos que faltam chegam ao simulador só como pares mandante x visitante, **sem placar**.
+- Um teste de perturbação altera todos os placares posteriores ao corte e exige que a previsão
+  saia idêntica, para os três modelos.
+- Os cortes por rodada usam a quantidade de jogos disputados (10 por rodada), não o número
+  oficial da rodada, porque jogos adiados embaralham a ordem.
+
 Os dados brutos e o `.duckdb` não vão para o Git: são regerados pela ingestão.
 
 ## Fontes e créditos
@@ -60,8 +79,9 @@ Os dados brutos e o `.duckdb` não vão para o Git: são regerados pela ingestã
 ## Roteiro
 
 - [x] Estrutura, ingestão e staging
-- [ ] Dixon-Coles, Elo e simulação Monte Carlo
-- [ ] Backtest 2026 e validação 2019–2025
+- [x] Dixon-Coles, Elo, baseline da tabela e simulação Monte Carlo
+- [ ] Ajuste de hiperparâmetros em 2019–2025
+- [ ] Backtest 2026 (parâmetros congelados)
 - [ ] Métricas e calibração
 - [ ] Site estático
 - [ ] v1.0.0

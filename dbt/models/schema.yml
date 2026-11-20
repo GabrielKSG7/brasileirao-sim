@@ -31,3 +31,18 @@ models:
 
   - name: int_matches_unified
     description: "Jogos com times padronizados por team_id."
+
+  - name: fct_matches
+    description: "Jogos com times canônicos e probabilidades implícitas do mercado (benchmark)."
+    columns:
+      - name: home_team_id
+        tests: [not_null]
+      - name: away_team_id
+        tests: [not_null]
+      - name: match_date
+        tests: [not_null]
+
+  - name: dim_teams
+    columns:
+      - name: team_id
+        tests: [unique, not_null]
