@@ -146,7 +146,7 @@ brutos, então roda no CI. Gera uma página única com gráficos em SVG (sem bib
 explorador por rodada em JavaScript puro. Os números exibidos são recalculados dos Parquets, e um
 teste confere as métricas do site contra um recálculo independente. Em 2026 (temporada em curso) a
 tabela mostra a classificação no corte escolhido, não um resultado final. O workflow de publicação
-está em `ci_templates/pages.yml` (copiar para `.github/workflows/`).
+está em `.github/workflows/pages.yml` (cópia de referência em `ci_templates/`).
 
 ## 6. Limitações conhecidas
 

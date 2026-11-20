@@ -4,7 +4,10 @@ Simulador do Brasileirão Série A com **backtest rodada a rodada**: para cada r
 o modelo roda usando apenas o que se sabia até aquele momento, e as probabilidades de título,
 Libertadores, Sul-Americana e rebaixamento são comparadas com o que aconteceu.
 
-> Status: **em construção** (v0.4: backtest, métricas e gerador do site prontos; publicação no Pages em seguida).
+**Site:** https://gabrielksg7.github.io/brasileirao-sim/
+
+> Status: **v1.0** (modelo, backtest, métricas e site no ar). As métricas de temporada de 2026 serão
+> fechadas depois do fim do campeonato (02/12/2026). Atualização semanal automática prevista para 2027.
 > Metodologia e resultados completos em [docs/METODOLOGIA.md](docs/METODOLOGIA.md).
 
 ## Resultados até agora
