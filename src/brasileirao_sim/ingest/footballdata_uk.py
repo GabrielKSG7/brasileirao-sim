@@ -27,6 +27,8 @@ import requests
 URL = "https://www.football-data.co.uk/new/BRA.csv"
 USER_AGENT = "brasileirao-sim (+https://github.com/GabrielKSG7/brasileirao-sim)"
 LOCAL_TZ = "America/Sao_Paulo"
+# Suba este número sempre que mudar as colunas do Parquet; o dbt confere antes do staging.
+SCHEMA_VERSION = 2
 FILE_TZ = "UTC"
 
 # Colunas indispensáveis: sem elas a ingestão falha, em vez de seguir com dado errado.
@@ -129,6 +131,7 @@ def run(csv_path: Path, out_dir: Path, source_url: str | None = None) -> Path:
 
     played = df[df["is_played"]]
     manifest = {
+        "schema_version": SCHEMA_VERSION,
         "source": source_url or "arquivo local",
         "fetched_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "sha256": hashlib.sha256(Path(csv_path).read_bytes()).hexdigest(),

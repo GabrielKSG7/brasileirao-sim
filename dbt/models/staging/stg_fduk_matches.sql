@@ -1,3 +1,12 @@
+{{ config(pre_hook="
+    select case
+        when coalesce(json_extract_string(content, '$.schema_version'), '0')
+             <> '" ~ var('fduk_schema_version') ~ "'
+        then error('Parquet de ingestão desatualizado. Rode: python -m brasileirao_sim.ingest.footballdata_uk --csv data/raw/BRA.csv')
+    end
+    from read_text('" ~ var('raw_dir') ~ "/fduk_bra.manifest.json')
+") }}
+
 -- Uma linha por jogo, vinda do BRA.csv do football-data.co.uk (via Parquet da ingestão).
 -- match_date é a data LOCAL (America/Sao_Paulo); kickoff_utc é o horário original (UTC).
 -- Odds são de fechamento. Nomes de times ainda crus: padronização em int_matches_unified.

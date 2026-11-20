@@ -30,6 +30,7 @@ class EloConfig:
     season_regress: float = 0.25    # fração puxada para a média a cada nova temporada
     promoted_offset: float = -80.0  # rating inicial de quem estreia = média + offset
     initial: float = 1500.0
+    sim_rating_sd: float = 0.0      # incerteza do rating na simulação (pontos de Elo)
 
 
 def _gd_mult(gd: int) -> float:
@@ -56,7 +57,22 @@ class EloModel:
         return _ordered_probs(dr, self.beta, self.c1, self.c2)
 
     def sample_scores(self, home_ids, away_ids, n_sims: int, rng: np.random.Generator):
-        return _sample_from_outcomes(self.outcome_probs(home_ids, away_ids), n_sims, rng)
+        sd = self.config.sim_rating_sd
+        if sd <= 0:
+            return _sample_from_outcomes(self.outcome_probs(home_ids, away_ids), n_sims, rng)
+        teams = sorted(set(home_ids) | set(away_ids))
+        pos = {t: i for i, t in enumerate(teams)}
+        base = np.array([self.ratings[t] for t in teams])[:, None]
+        r = base + rng.normal(0, sd, (len(teams), n_sims))
+        hi = np.array([pos[t] for t in home_ids])
+        ai = np.array([pos[t] for t in away_ids])
+        dr = r[hi] + self.config.home - r[ai]  # (n_jogos, n_sims)
+        p_away = expit(self.c1 - self.beta * dr)
+        p_not_home = expit(self.c2 - self.beta * dr)
+        u = rng.random(dr.shape)
+        home_win = u >= p_not_home
+        away_win = u < p_away
+        return home_win.astype(np.int64), away_win.astype(np.int64)
 
 
 def _ordered_probs(dr, beta, c1, c2) -> np.ndarray:

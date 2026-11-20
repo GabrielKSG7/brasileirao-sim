@@ -33,6 +33,9 @@ class DCConfig:
     promoted_defense: float = -0.15  # média a priori da defesa de promovidos
     lookback_days: int = 4 * 365    # jogos mais antigos que isso são ignorados
     max_goals: int = 10             # placar máximo considerado por time
+    # Incerteza de parâmetro na simulação: desvio-padrão do ruído somado ao ataque e à defesa
+    # de cada time, sorteado uma vez por simulação (vale para o restante da temporada).
+    sim_strength_sd: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -82,16 +85,44 @@ class DCModel:
         return np.column_stack([p_home, p_draw, 1 - p_home - p_draw])
 
     def sample_scores(self, home_ids, away_ids, n_sims: int, rng: np.random.Generator):
-        """Sorteia placares: dois arrays (n_jogos, n_sims)."""
-        m = self.score_matrices(home_ids, away_ids)
-        n, size = m.shape[0], m.shape[1]
-        cdf = m.reshape(n, -1).cumsum(axis=1)
-        cdf[:, -1] = 1.0
-        u = rng.random((n, n_sims))
-        flat = np.empty((n, n_sims), dtype=np.int64)
-        for i in range(n):
-            flat[i] = np.searchsorted(cdf[i], u[i], side="right")
-        return flat // size, flat % size
+        """Sorteia placares: dois arrays (n_jogos, n_sims).
+
+        Amostragem exata de Dixon-Coles por aceitação/rejeição: propõe placares de Poissons
+        independentes e aceita com probabilidade tau/max(tau). Com `sim_strength_sd` > 0, cada
+        simulação usa forças perturbadas (incerteza sobre o nível real de cada time)."""
+        h, a = self._idx(home_ids), self._idx(away_ids)
+        n_fix = len(h)
+        att = np.repeat(self.attack[:, None], n_sims, axis=1)
+        dfn = np.repeat(self.defense[:, None], n_sims, axis=1)
+        sd = self.config.sim_strength_sd
+        if sd > 0:
+            att = att + rng.normal(0, sd, att.shape)
+            dfn = dfn + rng.normal(0, sd, dfn.shape)
+        lam = np.exp(self.base + self.home + att[h] - dfn[a])
+        mu = np.exp(self.base + att[a] - dfn[h])
+
+        r = self.rho
+        tau_max = np.maximum.reduce(
+            [np.ones_like(lam), 1 - lam * mu * r, 1 + lam * r, 1 + mu * r, np.full_like(lam, 1 - r)]
+        )
+        hg = np.empty((n_fix, n_sims), dtype=np.int64)
+        ag = np.empty((n_fix, n_sims), dtype=np.int64)
+        todo = np.ones((n_fix, n_sims), dtype=bool)
+        for _ in range(50):
+            if not todo.any():
+                break
+            x = rng.poisson(lam[todo])
+            y = rng.poisson(mu[todo])
+            t = _tau(x, y, lam[todo], mu[todo], r)
+            ok = rng.random(x.shape) * tau_max[todo] < t
+            idx = np.flatnonzero(todo)[ok]
+            hg.flat[idx] = x[ok]
+            ag.flat[idx] = y[ok]
+            todo.flat[idx] = False
+        if todo.any():  # praticamente impossível; mantém a proposta independente
+            hg[todo] = rng.poisson(lam[todo])
+            ag[todo] = rng.poisson(mu[todo])
+        return hg, ag
 
 
 def _tau(x, y, lam, mu, rho):

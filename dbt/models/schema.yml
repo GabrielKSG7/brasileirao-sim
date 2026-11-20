@@ -46,3 +46,18 @@ models:
     columns:
       - name: team_id
         tests: [unique, not_null]
+
+  - name: eval_match_scores
+    description: "RPS, log loss e Brier jogo a jogo por temporada e modelo (inclui o mercado)."
+    columns:
+      - name: model
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["dixon_coles", "elo", "tabela", "mercado"]
+
+  - name: eval_season_scores
+    description: "Brier e log loss das probabilidades de título, G4, Libertadores, Sul-Americana e Z4."
+
+  - name: eval_calibration
+    description: "Tabela de calibração das probabilidades por zona (temporadas completas)."

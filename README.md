@@ -4,7 +4,18 @@ Simulador do Brasileirão Série A com **backtest rodada a rodada**: para cada r
 o modelo roda usando apenas o que se sabia até aquele momento, e as probabilidades de título,
 Libertadores, Sul-Americana e rebaixamento são comparadas com o que aconteceu.
 
-> Status: **em construção** (v0.2: ingestão, modelos e simulação). O roteiro completo está abaixo.
+> Status: **em construção** (v0.3: backtest e métricas prontos; site em seguida).
+> Metodologia e resultados completos em [docs/METODOLOGIA.md](docs/METODOLOGIA.md).
+
+## Resultados até agora
+
+- **2026, rodada a rodada:** o favorito ao título trocou 8 vezes. Na rodada 20, o modelo dava
+  70% ao Palmeiras e 27% ao Flamengo; após 35 rodadas, Flamengo 98%.
+- **Jogo a jogo (log loss, 2019–2025 / 2026):** mercado 1,001 / 0,970 · Dixon-Coles 1,021 / 1,003 ·
+  Elo 1,021 / 0,995 · tabela 1,052 / 1,053.
+- **Leitura honesta:** Dixon-Coles e Elo empatam estatisticamente; os dois batem com folga o
+  "se continuar assim" e perdem para o mercado de apostas, que sabe de lesões e escalações.
+- **Calibração:** das previsões entre 40% e 50%, 43,9% aconteceram.
 
 ## Ideia
 
@@ -31,7 +42,8 @@ Na v1 as zonas são fixas por posição, sem a redistribuição de vagas que dep
 ingestão (Python)  ->  data/raw/*.parquet + manifesto (hash, data da coleta)
 dbt + DuckDB       ->  staging -> intermediate -> marts
 Python (src/)      ->  data.py (corte por data) -> models/ -> simulate.py
-dbt                ->  predições, probabilidades por time, métricas, calibração
+results/backtest/  ->  previsões versionadas (Parquet)
+dbt (evaluation/)  ->  métricas, calibração, precisão por rodada
 site/              ->  páginas estáticas -> GitHub Pages
 ```
 
@@ -57,7 +69,20 @@ python -m brasileirao_sim.cli simulate --season 2026 --as-of 2026-11-20
 python -m brasileirao_sim.cli simulate --season 2026 --as-of 2026-07-29 --model elo --out out/r20.csv
 ```
 
-Modelos: `dixon_coles` (principal), `elo` e `tabela` (baselines).
+Modelos: `dixon_coles` (principal), `elo` e `tabela` (baselines). Usa os parâmetros congelados
+em `config/model_params.json`.
+
+### Backtest e ajuste
+
+```bash
+python -m brasileirao_sim.tune --stage matches    # grade jogo a jogo em 2019–2025 (~10 min)
+python -m brasileirao_sim.tune --stage season     # incerteza da simulação (~5 min)
+python -m brasileirao_sim.cli backtest --seasons 2019-2026   # ~2 min, grava results/backtest/
+cd dbt && dbt build --profiles-dir .              # métricas e calibração (modelos eval_*)
+```
+
+Os resultados do backtest (`results/`) são versionados: são o produto do projeto e permitem
+conferir os números sem rodar nada.
 
 ## Proteção contra vazamento de dados futuros
 
@@ -80,9 +105,9 @@ Os dados brutos e o `.duckdb` não vão para o Git: são regerados pela ingestã
 
 - [x] Estrutura, ingestão e staging
 - [x] Dixon-Coles, Elo, baseline da tabela e simulação Monte Carlo
-- [ ] Ajuste de hiperparâmetros em 2019–2025
-- [ ] Backtest 2026 (parâmetros congelados)
-- [ ] Métricas e calibração
+- [x] Ajuste de hiperparâmetros em 2019–2025 (congelados em `config/model_params.json`)
+- [x] Backtest 2019–2026 e métricas (RPS, log loss, Brier, calibração, bootstrap) no dbt
+- [ ] Avaliação de temporada de 2026 após a última rodada (02/12/2026)
 - [ ] Site estático
 - [ ] v1.0.0
 - [ ] Atualização semanal em 2027

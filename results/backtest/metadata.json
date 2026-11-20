@@ -1,0 +1,78 @@
+{
+  "gerado_em": "2026-11-20T16:41:14+00:00",
+  "temporadas": [
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "simulacoes": 5000,
+  "simulacoes_holdout": 10000,
+  "semente": 2026,
+  "parametros": {
+    "dixon_coles": {
+      "xi": 0.0019,
+      "ridge": 5.0,
+      "promoted_attack": -0.1,
+      "promoted_defense": -0.1,
+      "lookback_days": 1460,
+      "max_goals": 10,
+      "sim_strength_sd": 0.2
+    },
+    "elo": {
+      "k": 11.0,
+      "home": 70.0,
+      "season_regress": 0.2,
+      "promoted_offset": 0.0,
+      "initial": 1500.0,
+      "sim_rating_sd": 75.0
+    },
+    "validacao": {
+      "temporadas": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "objetivo_etapa1": "log loss média dos jogos da janela seguinte a cada corte",
+      "dixon_coles_log_loss": 1.0208335467496925,
+      "elo_log_loss": 1.0213509855243026,
+      "objetivo_etapa2": "Brier médio das zonas ['titulo', 'g4', 'libertadores', 'sul_americana', 'rebaixamento'] em todos os cortes (2000 simulações)"
+    }
+  },
+  "parametros_sha256": "dce153125fecb130771dfa0d98bfb9a0fbd4bde0ef817cab7bd60416348502f7",
+  "dados": {
+    "schema_version": 2,
+    "source": "arquivo local",
+    "fetched_at_utc": "2026-11-20T16:14:43+00:00",
+    "sha256": "bc906f53bfbfe93dc030cacb786c26246a68e61e7332cc121a63d7ff1311bb06",
+    "rows": 5670,
+    "played_rows": 5669,
+    "seasons": [
+      2012,
+      2013,
+      2014,
+      2015,
+      2016,
+      2017,
+      2018,
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "first_date": "2012-05-19",
+    "last_date": "2026-11-19"
+  }
+}
