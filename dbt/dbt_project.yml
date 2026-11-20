@@ -1,0 +1,21 @@
+name: brasileirao_sim
+version: "0.1.0"
+config-version: 2
+profile: brasileirao_sim
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Pasta com os Parquets gerados pela ingestão (relativa à pasta dbt/)
+  raw_dir: "../data/raw"
+
+models:
+  brasileirao_sim:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view

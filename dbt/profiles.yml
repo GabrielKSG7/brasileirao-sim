@@ -1,0 +1,9 @@
+# Perfil versionado no repositório: caminhos relativos, funciona em qualquer máquina.
+# Uso: cd dbt && dbt build --profiles-dir .
+brasileirao_sim:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/brasileirao.duckdb
+      threads: 4

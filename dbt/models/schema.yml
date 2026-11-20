@@ -1,0 +1,33 @@
+version: 2
+
+seeds:
+  - name: team_aliases
+    description: "De-para dos nomes de times das fontes para um team_id canônico."
+    columns:
+      - name: alias
+        tests: [unique, not_null]
+      - name: team_id
+        tests: [not_null]
+
+models:
+  - name: stg_fduk_matches
+    description: "Jogos do Brasileirão (football-data.co.uk), um por linha, nomes crus."
+    columns:
+      - name: season
+        tests: [not_null]
+      - name: match_date
+        tests: [not_null]
+      - name: home_team
+        tests: [not_null]
+      - name: away_team
+        tests: [not_null]
+      - name: result
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["H", "D", "A"]
+              config:
+                where: "is_played"
+
+  - name: int_matches_unified
+    description: "Jogos com times padronizados por team_id."
