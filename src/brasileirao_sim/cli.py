@@ -122,6 +122,13 @@ def cmd_backtest(args) -> int:
     return 0
 
 
+def cmd_site(args) -> int:
+    from brasileirao_sim.site import build_site
+
+    print(f"site gerado em {build_site(Path(args.out), Path(args.results))}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="brasileirao-sim")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -146,6 +153,10 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--params", default="config/model_params.json")
     b.add_argument("--out", default="results/backtest")
     b.set_defaults(func=cmd_backtest)
+    w = sub.add_parser("site", help="gera o site estático a partir de results/backtest")
+    w.add_argument("--out", default="site")
+    w.add_argument("--results", default="results/backtest")
+    w.set_defaults(func=cmd_site)
     args = p.parse_args(argv)
     return args.func(args)
 

@@ -31,3 +31,4 @@ Thumbs.db
 
 # dbt: identificador local do usuário
 dbt/.user.yml
+site/

@@ -139,6 +139,15 @@ pré-temporada, o modelo dava 58% de rebaixamento ao Coritiba, que chegou à rod
 A avaliação das probabilidades de temporada de 2026 (Brier, calibração) só pode ser feita depois
 da última rodada, em 02/12/2026: basta rodar de novo a ingestão, o backtest de 2026 e o `dbt build`.
 
+## 5b. Site
+
+`brasileirao_sim.site` é uma função pura de `results/backtest/` e do seed de nomes: não lê dados
+brutos, então roda no CI. Gera uma página única com gráficos em SVG (sem biblioteca externa) e um
+explorador por rodada em JavaScript puro. Os números exibidos são recalculados dos Parquets, e um
+teste confere as métricas do site contra um recálculo independente. Em 2026 (temporada em curso) a
+tabela mostra a classificação no corte escolhido, não um resultado final. O workflow de publicação
+está em `ci_templates/pages.yml` (copiar para `.github/workflows/`).
+
 ## 6. Limitações conhecidas
 
 - Só placares: sem escalações, lesões, mercado de transferências ou calendário das copas.

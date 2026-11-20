@@ -4,7 +4,7 @@ Simulador do Brasileirão Série A com **backtest rodada a rodada**: para cada r
 o modelo roda usando apenas o que se sabia até aquele momento, e as probabilidades de título,
 Libertadores, Sul-Americana e rebaixamento são comparadas com o que aconteceu.
 
-> Status: **em construção** (v0.3: backtest e métricas prontos; site em seguida).
+> Status: **em construção** (v0.4: backtest, métricas e gerador do site prontos; publicação no Pages em seguida).
 > Metodologia e resultados completos em [docs/METODOLOGIA.md](docs/METODOLOGIA.md).
 
 ## Resultados até agora
@@ -44,7 +44,7 @@ dbt + DuckDB       ->  staging -> intermediate -> marts
 Python (src/)      ->  data.py (corte por data) -> models/ -> simulate.py
 results/backtest/  ->  previsões versionadas (Parquet)
 dbt (evaluation/)  ->  métricas, calibração, precisão por rodada
-site/              ->  páginas estáticas -> GitHub Pages
+python -m brasileirao_sim.cli site  ->  site/index.html (SVG + JS mínimo, sem CDN) -> GitHub Pages
 ```
 
 ## Como rodar (qualquer máquina)
@@ -58,6 +58,8 @@ pip install -e ".[dev]"
 python -m brasileirao_sim.ingest.footballdata_uk     # baixa o BRA.csv e gera o Parquet
 cd dbt && dbt build --profiles-dir .                 # staging + testes
 cd .. && pytest
+
+python -m brasileirao_sim.cli site --out site        # gera o site em site/index.html (não precisa dos dados brutos)
 ```
 
 Para usar um CSV já baixado: `python -m brasileirao_sim.ingest.footballdata_uk --csv caminho/BRA.csv`.
